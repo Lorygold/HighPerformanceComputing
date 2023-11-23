@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
+#include <omp.h>
 
 /* Include polybench common header. */
 #define POLYBENCH_DUMP_ARRAYS
@@ -24,18 +26,25 @@ static void init_array(int ni, int nj, int nk, int nl,
 
   *alpha = 32412;
   *beta = 2123;
-  for (i = 0; i < ni; i++)
-    for (j = 0; j < nk; j++)
-      A[i][j] = ((DATA_TYPE)i * j) / ni;
-  for (i = 0; i < nk; i++)
-    for (j = 0; j < nj; j++)
-      B[i][j] = ((DATA_TYPE)i * (j + 1)) / nj;
-  for (i = 0; i < nl; i++)
-    for (j = 0; j < nj; j++)
-      C[i][j] = ((DATA_TYPE)i * (j + 3)) / nl;
-  for (i = 0; i < ni; i++)
-    for (j = 0; j < nl; j++)
-      D[i][j] = ((DATA_TYPE)i * (j + 2)) / nk;
+  #pragma omp parallel
+  {
+    #pragma omp for
+    for (i = 0; i < ni; i++)
+      for (j = 0; j < nk; j++)
+        A[i][j] = ((DATA_TYPE)i * j) / ni;
+    #pragma omp for   
+    for (i = 0; i < nk; i++)
+      for (j = 0; j < nj; j++)
+        B[i][j] = ((DATA_TYPE)i * (j + 1)) / nj;
+    #pragma omp for    
+    for (i = 0; i < nl; i++)
+      for (j = 0; j < nj; j++)
+        C[i][j] = ((DATA_TYPE)i * (j + 3)) / nl;
+    #pragma omp for    
+    for (i = 0; i < ni; i++)
+      for (j = 0; j < nl; j++)
+        D[i][j] = ((DATA_TYPE)i * (j + 2)) / nk;
+  }
 }
 
 /* DCE code. Must scan the entire live-out data.
@@ -44,7 +53,7 @@ static void print_array(int ni, int nl,
                         DATA_TYPE POLYBENCH_2D(D, NI, NL, ni, nl))
 {
   int i, j;
-
+  
   for (i = 0; i < ni; i++)
     for (j = 0; j < nl; j++)
     {
@@ -69,7 +78,10 @@ static void kernel_2mm(int ni, int nj, int nk, int nl,
   int i, j, k;
 
   /* D := alpha*A*B*C + beta*D */
+  
+  #pragma omp parallel
   {
+    #pragma omp for
     for (i = 0; i < _PB_NI; i++)
       for (j = 0; j < _PB_NJ; j++)
       {
@@ -77,6 +89,8 @@ static void kernel_2mm(int ni, int nj, int nk, int nl,
         for (k = 0; k < _PB_NK; ++k)
           tmp[i][j] += alpha * A[i][k] * B[k][j];
       }
+    
+    #pragma omp for
     for (i = 0; i < _PB_NI; i++)
       for (j = 0; j < _PB_NL; j++)
       {
@@ -84,11 +98,21 @@ static void kernel_2mm(int ni, int nj, int nk, int nl,
         for (k = 0; k < _PB_NJ; ++k)
           D[i][j] += tmp[i][k] * C[k][j];
       }
+    
   }
+  
 }
 
 int main(int argc, char **argv)
 {
+
+  /* Time variables */
+  struct timespec start, end;
+  
+  /* Start clock timer */
+  clock_gettime(CLOCK_REALTIME, &start);
+
+
   /* Retrieve problem size. */
   int ni = NI;
   int nj = NJ;
@@ -113,7 +137,8 @@ int main(int argc, char **argv)
 
   /* Start timer. */
   polybench_start_instruments;
-
+  
+  
   /* Run kernel. */
   kernel_2mm(ni, nj, nk, nl,
              alpha, beta,
@@ -122,6 +147,7 @@ int main(int argc, char **argv)
              POLYBENCH_ARRAY(B),
              POLYBENCH_ARRAY(C),
              POLYBENCH_ARRAY(D));
+      
 
   /* Stop and print timer. */
   polybench_stop_instruments;
@@ -137,6 +163,18 @@ int main(int argc, char **argv)
   POLYBENCH_FREE_ARRAY(B);
   POLYBENCH_FREE_ARRAY(C);
   POLYBENCH_FREE_ARRAY(D);
-
+  
+  /* Stop clock timer */
+  clock_gettime(CLOCK_REALTIME, &end);
+  
+  // Calculate the difference in time
+    long seconds = end.tv_sec - start.tv_sec;
+    long nanoseconds = end.tv_nsec - start.tv_nsec;
+    if (start.tv_nsec > end.tv_nsec) { // clock underflow
+        --seconds;
+        nanoseconds += 1000000000;
+    }
+  
+  printf("Time taken by function: %ld.%09ld seconds\n", seconds, nanoseconds);
   return 0;
 }
