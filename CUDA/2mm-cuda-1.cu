@@ -163,7 +163,7 @@ int main(int argc, char **argv)
   /* D := alpha*A*B*C + beta*D */
   kernelCUDA1<<<grid_size,block_size>>>(tmp, A, B, alpha, ni, nj, nk);
   cudaMemcpy(tmp, d_tmp, sizeof(double) * ni * nj, cudaMemcpyDeviceToHost);
-  printf("ciao");
+  fprintf(stderr, "YOOO\n");
   /* Stop and print timer. */
   polybench_stop_instruments;
   polybench_print_instruments;
