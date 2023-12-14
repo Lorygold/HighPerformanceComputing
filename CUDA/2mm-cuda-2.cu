@@ -14,7 +14,7 @@
 #include "2mm.h"
 
 #ifndef BLOCK_SIZE
-#define BLOCK_SIZE (512)
+#define BLOCK_SIZE (16)
 #endif
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
@@ -93,8 +93,8 @@ __global__ void kernelCUDA1(double* tmp, double* A, double* B, double alpha, int
       
       // Accumulate product
       //printf("\n%f\n",A[1002]);
-      sum = sum + alpha * A[(i * nk) + k] * B[(k * nj) + j];
-      //printf("i=%d nk=%d k=%d j=%d nj=%d result_1=%d result_2=%d value_a=%f\n",i,nk,k,j,nj,((i * nk) + k),((k * nj) + j),A[(i * nk) + k]);
+      sum = sum + alpha * B[(i * nk) + k] * A[(k * nj) + j];
+      printf("i=%d nk=%d k=%d j=%d nj=%d result_1=%d result_2=%d value_a=%f\n",i,nk,k,j,nj,((i * nk) + k),((k * nj) + j),A[(i * nk) + k]);
     }
     // Write result
     tmp[(i * nj) + j] = sum;
@@ -140,21 +140,23 @@ int main(int argc, char **argv)
   /* Start timer. */
   polybench_start_instruments;
 
-  dim3 block_size(BLOCK_SIZE);
-  dim3 grid_size((N + (BLOCK_SIZE)-1) / (BLOCK_SIZE));
+  dim3 block_size(BLOCK_SIZE, BLOCK_SIZE);
+  dim3 grid_size((N+BLOCK_SIZE-1) / (BLOCK_SIZE),(N+BLOCK_SIZE-1) / (BLOCK_SIZE));
+  printf("\ngrid_size=%d, block_size=%d\n",((N+BLOCK_SIZE-1) / (BLOCK_SIZE)) * ((N+BLOCK_SIZE-1) / (BLOCK_SIZE)), BLOCK_SIZE*BLOCK_SIZE );
   /* D := alpha*A*B*C + beta*D */
   kernelCUDA1<<<grid_size,block_size>>>(tmp, A, B, alpha, ni, nj, nk);
   gpuErrchk(cudaDeviceSynchronize());
   gpuErrchk(cudaPeekAtLastError());
+  
   //printf("value_a=%f\n",A[3100]);
   //printf("%f\n",A[1002]);
-  
+  /*
   for(int z=0; z< ni*nk; z++){
     if(z%5 == 0)
       printf("\n");
     printf("z=%d tmp[z]=%f ", z,tmp[z]);
   }
-  
+  */
   //printf("\n%f\n",A[1002]);
   /* Stop and print timer. */
   polybench_stop_instruments;
