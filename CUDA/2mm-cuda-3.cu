@@ -139,11 +139,11 @@ int main(int argc, char **argv)
   double* tmp;
 
   /* Initialize array(s). */
-  gpuErrchk(cudaHostAlloc((void **)&A, sizeof(double) * ni * nk, cudaHostAllocDefault));
-  gpuErrchk(cudaHostAlloc((void **)&B, sizeof(double) * nk * nj, cudaHostAllocDefault));
-  gpuErrchk(cudaHostAlloc((void **)&C, sizeof(double) * nl * nj, cudaHostAllocDefault));
-  gpuErrchk(cudaHostAlloc((void **)&D, sizeof(double) * ni * nl, cudaHostAllocDefault));
-  gpuErrchk(cudaHostAlloc((void **)&tmp, sizeof(double) * ni * nj, cudaHostAllocDefault));
+  gpuErrchk(cudaMallocManaged((void **)&A, sizeof(double) * ni * nk));
+  gpuErrchk(cudaMallocManaged((void **)&B, sizeof(double) * nk * nj));
+  gpuErrchk(cudaMallocManaged((void **)&C, sizeof(double) * nl * nj));
+  gpuErrchk(cudaMallocManaged((void **)&D, sizeof(double) * ni * nl));
+  gpuErrchk(cudaMallocManaged((void **)&tmp, sizeof(double) * ni * nj));
   init_array(ni, nj, nk, nl, &alpha, &beta,A,B,C,D);
   
   
