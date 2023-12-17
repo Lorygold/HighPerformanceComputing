@@ -14,7 +14,7 @@
 #include "2mm.h"
 
 #ifndef BLOCK_SIZE
-#define BLOCK_SIZE (16)
+#define BLOCK_SIZE (32)
 #endif
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
@@ -83,20 +83,15 @@ __global__ void kernelCUDA1(double* tmp, double* A, double* B, double alpha, int
   // Check bounds
   if (i < ni && j < nj) 
   {
-    
     // Initialize result
     double sum = 0.0;
-    // Loop over k
     for(k = 0; k < nk; k++)
     {  
-      
       // Accumulate product
       sum = sum + alpha * B[(i * nk) + k] * A[(k * nj) + j];
-      //printf("i=%d nk=%d k=%d j=%d nj=%d result_1=%d result_2=%d value_a=%f\n",i,nk,k,j,nj,((i * nk) + k),((k * nj) + j),A[(i * nk) + k]);
     }
     // Write result
     tmp[(i * nj) + j] = sum;
-    //printf("%f\n",sum);
   }
 }
 
@@ -108,7 +103,7 @@ __global__ void kernelCUDA2(double* tmp, double* D, double* C, double beta, int 
   int j = blockIdx.x * blockDim.x + threadIdx.x;
   // Check bounds
   if (i < ni && j < nj) {
-    
+   // Initialize result 
    double sum = 0.0; 
    for (int k = 0; k < nj; k++){
       // Accumulate product
@@ -138,6 +133,7 @@ int main(int argc, char **argv)
   double* D;
   double* tmp;
 
+  
   /* Initialize array(s). */
   gpuErrchk(cudaMallocManaged((void **)&A, sizeof(double) * ni * nk));
   gpuErrchk(cudaMallocManaged((void **)&B, sizeof(double) * nk * nj));
@@ -154,20 +150,24 @@ int main(int argc, char **argv)
   dim3 grid_size((N+BLOCK_SIZE-1) / (BLOCK_SIZE),(N+BLOCK_SIZE-1) / (BLOCK_SIZE));
   printf("\ngrid_size=%d, block_size=%d\n",((N+BLOCK_SIZE-1) / (BLOCK_SIZE)) * ((N+BLOCK_SIZE-1) / (BLOCK_SIZE)), BLOCK_SIZE*BLOCK_SIZE );
   /* D := alpha*A*B*C + beta*D */
+  
   kernelCUDA1<<<grid_size,block_size>>>(tmp, A, B, alpha, ni, nj, nk);
-  gpuErrchk(cudaDeviceSynchronize());
   gpuErrchk(cudaPeekAtLastError());
   kernelCUDA2<<<grid_size,block_size>>>(tmp, D, C, beta, ni, nj, nl);
   gpuErrchk(cudaDeviceSynchronize());
   gpuErrchk(cudaPeekAtLastError());
-  
-  for(int z=0; z< ni*nk; z++){
-    printf("z=%d D[z]=%f\n ", z,D[z]);
-  }
+
   
   /* Stop and print timer. */
   polybench_stop_instruments;
   polybench_print_instruments;
+  /*
+  for(int z=0; z< ni*nk; z++){
+    printf("z=%d D[z]=%f\n ", z,D[z]);
+  }
+  */
+  
+
 
   /* Be clean. */
   cudaFree(A);
