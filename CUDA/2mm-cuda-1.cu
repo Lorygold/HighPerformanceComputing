@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <math.h>
+#include <chrono>
 
 /* Include polybench common header. */
 #include <polybench.h>
@@ -12,7 +13,7 @@
 /* Include benchmark-specific header. */
 /* Default data type is double, default size is 4000. */
 #include "2mm.h"
-
+using namespace std::chrono;
 #ifndef BLOCK_SIZE
 #define BLOCK_SIZE (32)
 #endif
@@ -134,8 +135,7 @@ int main(int argc, char **argv)
   /* Initialize array(s). */
   init_array(ni, nj, nk, nl, &alpha, &beta,A,B,C,D);
 
-  /* Start timer. */
-  polybench_start_instruments;
+  
 
   // Allocate device memory
   double *d_a, *d_b, *d_c, *d_d, *d_tmp;
@@ -150,19 +150,23 @@ int main(int argc, char **argv)
   gpuErrchk(cudaMemcpy(d_b, B, sizeof(double) * nk * nj, cudaMemcpyHostToDevice));
   gpuErrchk(cudaMemcpy(d_c, C, sizeof(double) * nl * nj, cudaMemcpyHostToDevice));
   gpuErrchk(cudaMemcpy(d_d, D, sizeof(double) * ni * nl, cudaMemcpyHostToDevice));
-
+  /* Start timer. */
+  polybench_start_instruments;
   dim3 block_size(BLOCK_SIZE,BLOCK_SIZE);
   dim3 grid_size((N+BLOCK_SIZE-1) / (BLOCK_SIZE),(N+BLOCK_SIZE-1) / (BLOCK_SIZE));
   /* D := alpha*A*B*C + beta*D */
   printf("\ngrid_size=%d, block_size=%d\n",((N+BLOCK_SIZE-1) / (BLOCK_SIZE)) * ((N+BLOCK_SIZE-1) / (BLOCK_SIZE)), BLOCK_SIZE*BLOCK_SIZE );
   kernelCUDA1<<<grid_size,block_size>>>(d_tmp, d_a, d_b, alpha, ni, nj, nk);
   gpuErrchk( cudaPeekAtLastError() );
-  gpuErrchk( cudaDeviceSynchronize() );
   kernelCUDA2<<<grid_size,block_size>>>(d_tmp, d_d, d_c, beta, ni, nj, nl);
-  gpuErrchk(cudaMemcpy(tmp, d_tmp, sizeof(double) * ni * nj, cudaMemcpyDeviceToHost));
+  gpuErrchk( cudaPeekAtLastError() );
+  gpuErrchk(cudaMemcpy(D, d_d, sizeof(double) * ni * nj, cudaMemcpyDeviceToHost));
+
+  /*
   for(int z = 0; z < ni*nj; z++){
-    printf("value=%f\n",tmp[z]);
+    printf("value=%f\n",D[z]);
   }
+  */
   /* Stop and print timer. */
   polybench_stop_instruments;
   polybench_print_instruments;
@@ -176,8 +180,8 @@ int main(int argc, char **argv)
   delete[] D;
   cudaFree(d_a);
   cudaFree(d_b);
-  //cudaFree(d_c)
-  //cudaFree(d_d)
+  cudaFree(d_c);
+  cudaFree(d_d);
   cudaFree(d_tmp);
 
   return 0;
