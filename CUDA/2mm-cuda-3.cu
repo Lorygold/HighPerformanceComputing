@@ -14,7 +14,7 @@
 #include "2mm.h"
 
 #ifndef BLOCK_SIZE
-#define BLOCK_SIZE (16)
+#define BLOCK_SIZE (32)
 #endif
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
